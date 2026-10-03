@@ -1,0 +1,1 @@
+export const API_BASE_URL=import.meta.env.VITE_API_BASE_URL||'';export const RAZORPAY_KEY_ID=import.meta.env.VITE_RAZORPAY_KEY_ID||'';export const studio={name:'Devesh Digital Studio',phone:'097990 16153',whatsapp:'919799016153',address:'LJ Jangid Market, Shahpura, Paota, Rajasthan 303106'};
