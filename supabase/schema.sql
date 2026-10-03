@@ -71,3 +71,50 @@ create policy "public can view active services" on services for select using (ac
 
 -- Customer writes should be performed through a server/API with validated identity.
 -- Do not add permissive anonymous insert policies for production orders/bookings.
+
+
+-- Admin-only catalogue writes. Admin status comes from profiles.role.
+create policy "admins can manage frames" on frames for all using (
+  exists(select 1 from profiles p where p.id=auth.uid() and p.role='admin')
+) with check (
+  exists(select 1 from profiles p where p.id=auth.uid() and p.role='admin')
+);
+
+create policy "admins can manage services" on services for all using (
+  exists(select 1 from profiles p where p.id=auth.uid() and p.role='admin')
+) with check (
+  exists(select 1 from profiles p where p.id=auth.uid() and p.role='admin')
+);
+
+create policy "customers can create bookings" on bookings for insert with check (
+  auth.uid() is not null and (customer_id is null or customer_id=auth.uid())
+);
+create policy "customers can view own bookings" on bookings for select using (
+  customer_id=auth.uid() or exists(select 1 from profiles p where p.id=auth.uid() and p.role='admin')
+);
+
+create policy "customers can create frame orders" on frame_orders for insert with check (
+  auth.uid() is not null and (customer_id is null or customer_id=auth.uid())
+);
+create policy "customers can view own frame orders" on frame_orders for select using (
+  customer_id=auth.uid() or exists(select 1 from profiles p where p.id=auth.uid() and p.role='admin')
+);
+
+-- Storage buckets. Create these once in Supabase SQL editor.
+insert into storage.buckets(id,name,public) values ('frame-images','frame-images',true) on conflict(id) do nothing;
+insert into storage.buckets(id,name,public) values ('customer-uploads','customer-uploads',false) on conflict(id) do nothing;
+
+create policy "public can read frame images" on storage.objects for select using (bucket_id='frame-images');
+create policy "admins can upload frame images" on storage.objects for insert with check (
+ bucket_id='frame-images' and exists(select 1 from profiles p where p.id=auth.uid() and p.role='admin')
+);
+create policy "admins can update frame images" on storage.objects for update using (
+ bucket_id='frame-images' and exists(select 1 from profiles p where p.id=auth.uid() and p.role='admin')
+);
+
+create policy "authenticated users upload own customer photos" on storage.objects for insert with check (
+ bucket_id='customer-uploads' and auth.uid() is not null
+);
+create policy "users read own customer photos" on storage.objects for select using (
+ bucket_id='customer-uploads' and auth.uid()::text = (storage.foldername(name))[1]
+);
